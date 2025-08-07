@@ -2,47 +2,59 @@
 #include <FS.h>
 #include <SPIFFS.h>
 
-#define PULSE_PIN 4 // Пин для импульсного выхода
-volatile unsigned long pulseCount = 0; // Счётчик импульсов
-
-void IRAM_ATTR pulseCounter() {
-    pulseCount++; // Увеличиваем счётчик при каждом импульсе
-}
+#define PULSE_PIN 4       // Пин импульсного выхода
+volatile unsigned long pulseCount = 0;  // Счётчик импульсов
+bool pulseActive = false;  // Флаг активного импульса
+unsigned long pulseStartTime = 0;  // Время начала импульса
+const unsigned long PULSE_LOW_TIME = 30000;  // 30 сек LOW (в миллисекундах!)
 
 void setup() {
     Serial.begin(115200);
+    SPIFFS.begin(true);  // Инициализация SPIFFS
 
-    // Инициализация SPIFFS
-    if (!SPIFFS.begin(true)) {
-        Serial.println("Ошибка инициализации SPIFFS!");
-        while (1);
-    }
-    Serial.println("SPIFFS инициализирован");
-
-    // Читаем предыдущее значение из файла
+    // Загрузка предыдущего значения
     if (SPIFFS.exists("/pulse_count.txt")) {
         File file = SPIFFS.open("/pulse_count.txt", FILE_READ);
-        pulseCount = file.parseInt(); // Читаем число из файла
+        pulseCount = file.parseInt();
         file.close();
         Serial.print("Предыдущее значение: ");
         Serial.println(pulseCount);
     }
 
-    pinMode(PULSE_PIN, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(PULSE_PIN), pulseCounter, FALLING);
+    pinMode(PULSE_PIN, INPUT_PULLUP);  // Подтяжка к HIGH
 }
 
 void loop() {
+    int pulseState = digitalRead(PULSE_PIN);  // Читаем состояние пина
+
+    // Если сигнал LOW и импульс ещё не начат
+    if (pulseState == LOW && !pulseActive) {
+        pulseActive = true;
+        pulseStartTime = millis();  // Запоминаем время начала
+    }
+
+    // Если сигнал снова HIGH и импульс был активен
+    if (pulseState == HIGH && pulseActive) {
+        unsigned long pulseDuration = millis() - pulseStartTime;
+
+        // Если LOW длился достаточно долго (30±5 сек)
+        if (pulseDuration >= (PULSE_LOW_TIME - 5000) && pulseDuration <= (PULSE_LOW_TIME + 5000)) {
+            pulseCount++;  // Считаем валидный импульс
+            Serial.print("Новый импульс! Всего: ");
+            Serial.println(pulseCount);
+        }
+        pulseActive = false;  // Сбрасываем флаг
+    }
+
+    // Сохранение в файл каждые 5 секунд
     static unsigned long lastSave = 0;
-    if (millis() - lastSave >= 5000) { // Сохранение каждые 5 секунд
+    if (millis() - lastSave >= 5000) {
         File file = SPIFFS.open("/pulse_count.txt", FILE_WRITE);
         if (file) {
-            file.print(pulseCount); // Записываем текущее значение
+            file.print(pulseCount);
             file.close();
             Serial.print("Сохранено: ");
             Serial.println(pulseCount);
-        } else {
-            Serial.println("Ошибка записи в файл!");
         }
         lastSave = millis();
     }
