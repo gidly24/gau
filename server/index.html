@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Онлайн-счётчик импульсов</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body { font-family: sans-serif; text-align: center; }
+  canvas { max-width: 800px; margin-top: 20px; }
+</style>
+</head>
+<body>
+<h1>Онлайн-счётчик импульсов</h1>
+<canvas id="pulseChart"></canvas>
+
+<script>
+let ctx = document.getElementById('pulseChart').getContext('2d');
+let chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [{
+            label: 'Пульсы',
+            data: [],
+            borderColor: 'blue',
+            fill: false
+        }]
+    },
+    options: {
+        responsive: true,
+        animation: false,
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+let ws = new WebSocket(`ws://${location.host}`);
+
+ws.onmessage = event => {
+    let value = parseInt(event.data);
+    let now = new Date().toLocaleTimeString();
+
+    chart.data.labels.push(now);
+    chart.data.datasets[0].data.push(value);
+
+    if (chart.data.labels.length > 20) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+    }
+
+    chart.update();
+};
+</script>
+</body>
+</html>
