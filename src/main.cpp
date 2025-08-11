@@ -9,12 +9,12 @@ unsigned long pulseStartTime = 0;
 const unsigned long PULSE_LOW_TIME = 30000; // 30 сек LOW
 
 // --- Wi-Fi ---
-const char* ssid = "Rus";
-const char* password = "guikguik";
+const char* ssid = "*****";
+const char* password = "********";
 
 // --- WebSocket ---
 WebSocketsClient webSocket;
-const char* ws_host = "192.168.0.110"; // IP сервера
+const char* ws_host = "0.0.0.0"; // IP сервера
 const uint16_t ws_port = 8080;         // порт WebSocket сервера
 
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
